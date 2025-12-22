@@ -64,7 +64,7 @@ npm run tauri build
 
 ## Download
 
-[Releases](../../releases) 페이지에서 플랫폼별 빌드를 다운로드할 수 있습니다.
+[공식 홈페이지](https://endurance.work/start)에서 플랫폼별 빌드를 다운로드할 수 있습니다.
 
 | Platform | File |
 |----------|------|

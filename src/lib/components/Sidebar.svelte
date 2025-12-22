@@ -99,4 +99,8 @@
     color: #fff;
     font-weight: 500;
   }
+
+  .nav-item.active .nav-label {
+    color: #1a1a2e;
+  }
 </style>
