@@ -18,7 +18,8 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-sql": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.9.0",
-    "ethers": "^6.16.0"
+    "ethers": "^6.16.0",
+    "marked": "^17.0.1"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",

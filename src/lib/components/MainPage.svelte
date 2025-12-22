@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getMyIP, checkServerStatus } from '$lib/utils/wallet';
+  import { marked } from 'marked';
 
   let myIP = $state('Loading...');
   let serverOnline = $state<boolean | null>(null);
   let lastChecked = $state('');
   let showReadme = $state(false);
-  let readmeContent = $state('');
+  let readmeHtml = $state('');
 
   async function checkStatus() {
     myIP = await getMyIP();
@@ -18,16 +19,17 @@
     checkStatus();
     const interval = setInterval(checkStatus, 30000);
 
-    // README 파일 로드
+    // README 파일 로드 및 마크다운 파싱
     try {
       const response = await fetch('/README.md');
       if (response.ok) {
-        readmeContent = await response.text();
+        const markdown = await response.text();
+        readmeHtml = await marked(markdown);
       } else {
-        readmeContent = 'README.md 파일을 불러올 수 없습니다.';
+        readmeHtml = '<p>README.md 파일을 불러올 수 없습니다.</p>';
       }
     } catch {
-      readmeContent = 'README.md 파일을 불러올 수 없습니다.';
+      readmeHtml = '<p>README.md 파일을 불러올 수 없습니다.</p>';
     }
 
     return () => clearInterval(interval);
@@ -98,8 +100,8 @@
         <span class="info-value">v0.1.2</span>
       </div>
       <div class="info-row">
-        <span class="info-label">문의</span>
-        <span class="info-value">초고속 생성&조회 문의 010-8809-2943</span>
+        <span class="info-label">초고속 생성&조회 문의</span>
+        <span class="info-value">010-8809-2943</span>
       </div>
       <div class="info-row">
         <span class="info-label">정보</span>
@@ -115,8 +117,8 @@
           <h2>README</h2>
           <button class="close-btn" onclick={() => showReadme = false}>&times;</button>
         </div>
-        <div class="modal-body">
-          <pre>{readmeContent}</pre>
+        <div class="modal-body markdown-content">
+          {@html readmeHtml}
         </div>
       </div>
     </div>
@@ -326,14 +328,100 @@
     flex: 1;
   }
 
-  .modal-body pre {
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 0.9rem;
+  .markdown-content :global(h1) {
+    font-size: 1.5rem;
+    color: #1a1a2e;
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #667eea;
+  }
+
+  .markdown-content :global(h2) {
+    font-size: 1.2rem;
+    color: #1a1a2e;
+    margin: 1.5rem 0 0.75rem 0;
+  }
+
+  .markdown-content :global(h3) {
+    font-size: 1rem;
+    color: #1a1a2e;
+    margin: 1rem 0 0.5rem 0;
+  }
+
+  .markdown-content :global(p) {
+    margin: 0.5rem 0;
     line-height: 1.6;
-    color: #333;
-    margin: 0;
+    color: #495057;
+  }
+
+  .markdown-content :global(ul), .markdown-content :global(ol) {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+    color: #495057;
+  }
+
+  .markdown-content :global(li) {
+    margin: 0.25rem 0;
+    line-height: 1.5;
+  }
+
+  .markdown-content :global(strong) {
+    color: #1a1a2e;
+  }
+
+  .markdown-content :global(code) {
+    background: #f0f0f0;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+
+  .markdown-content :global(pre) {
+    background: #f5f5f5;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+
+  .markdown-content :global(pre code) {
+    background: none;
+    padding: 0;
+  }
+
+  .markdown-content :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75rem 0;
+  }
+
+  .markdown-content :global(th), .markdown-content :global(td) {
+    border: 1px solid #ddd;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+  }
+
+  .markdown-content :global(th) {
+    background: #f5f5f5;
+    font-weight: 600;
+  }
+
+  .markdown-content :global(blockquote) {
+    border-left: 4px solid #667eea;
+    margin: 0.75rem 0;
+    padding: 0.5rem 1rem;
+    background: #f9f9ff;
+    color: #555;
+  }
+
+  .markdown-content :global(a) {
+    color: #667eea;
+    text-decoration: none;
+  }
+
+  .markdown-content :global(a:hover) {
+    text-decoration: underline;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -394,8 +482,49 @@
       color: #fff;
     }
 
-    .modal-body pre {
+    .markdown-content :global(h1),
+    .markdown-content :global(h2),
+    .markdown-content :global(h3),
+    .markdown-content :global(strong) {
+      color: #f0f0f0;
+    }
+
+    .markdown-content :global(p),
+    .markdown-content :global(ul),
+    .markdown-content :global(ol),
+    .markdown-content :global(li) {
+      color: #b0b0c0;
+    }
+
+    .markdown-content :global(code) {
+      background: #1a1a2e;
       color: #d0d0e0;
+    }
+
+    .markdown-content :global(pre) {
+      background: #1a1a2e;
+    }
+
+    .markdown-content :global(th), .markdown-content :global(td) {
+      border-color: #3a3a4e;
+    }
+
+    .markdown-content :global(th) {
+      background: #1a1a2e;
+      color: #f0f0f0;
+    }
+
+    .markdown-content :global(td) {
+      color: #b0b0c0;
+    }
+
+    .markdown-content :global(blockquote) {
+      background: #1a1a2e;
+      color: #b0b0c0;
+    }
+
+    .markdown-content :global(a) {
+      color: #8b9fea;
     }
   }
 </style>
