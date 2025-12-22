@@ -5,6 +5,8 @@
   let myIP = $state('Loading...');
   let serverOnline = $state<boolean | null>(null);
   let lastChecked = $state('');
+  let showReadme = $state(false);
+  let readmeContent = $state('');
 
   async function checkStatus() {
     myIP = await getMyIP();
@@ -12,9 +14,22 @@
     lastChecked = new Date().toLocaleTimeString();
   }
 
-  onMount(() => {
+  onMount(async () => {
     checkStatus();
     const interval = setInterval(checkStatus, 30000);
+
+    // README 파일 로드
+    try {
+      const response = await fetch('/README.md');
+      if (response.ok) {
+        readmeContent = await response.text();
+      } else {
+        readmeContent = 'README.md 파일을 불러올 수 없습니다.';
+      }
+    } catch {
+      readmeContent = 'README.md 파일을 불러올 수 없습니다.';
+    }
+
     return () => clearInterval(interval);
   });
 </script>
@@ -70,28 +85,42 @@
 
   <div class="developer-card">
     <div class="card-header">
-      <span class="card-icon">👨‍💻</span>
-      <h3>개발자 정보</h3>
+      <span class="card-icon">ℹ️</span>
+      <h3>프로그램 정보</h3>
     </div>
     <div class="card-body developer-info">
       <div class="info-row">
         <span class="info-label">개발자</span>
-        <span class="info-value">Endurance Team</span>
+        <span class="info-value">함신승</span>
       </div>
       <div class="info-row">
         <span class="info-label">버전</span>
-        <span class="info-value">1.0.0</span>
+        <span class="info-value">v0.1.2</span>
       </div>
       <div class="info-row">
         <span class="info-label">문의</span>
-        <span class="info-value">support@endurance.work</span>
+        <span class="info-value">초고속 생성&조회 문의 010-8809-2943</span>
       </div>
       <div class="info-row">
-        <span class="info-label">GitHub</span>
-        <span class="info-value">github.com/endurance</span>
+        <span class="info-label">정보</span>
+        <button class="view-readme-btn" onclick={() => showReadme = true}>보기</button>
       </div>
     </div>
   </div>
+
+  {#if showReadme}
+    <div class="modal-overlay" onclick={() => showReadme = false} role="button" tabindex="0" onkeydown={(e) => e.key === 'Escape' && (showReadme = false)}>
+      <div class="modal-content" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h2>README</h2>
+          <button class="close-btn" onclick={() => showReadme = false}>&times;</button>
+        </div>
+        <div class="modal-body">
+          <pre>{readmeContent}</pre>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -222,6 +251,91 @@
     font-weight: 500;
   }
 
+  .view-readme-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .view-readme-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
+
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #1a1a2e;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #888;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .close-btn:hover {
+    color: #333;
+  }
+
+  .modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .modal-body pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #333;
+    margin: 0;
+  }
+
   @media (prefers-color-scheme: dark) {
     h1 {
       color: #f0f0f0;
@@ -258,6 +372,30 @@
 
     .info-value {
       color: #f0f0f0;
+    }
+
+    .modal-content {
+      background: #2a2a3e;
+    }
+
+    .modal-header {
+      border-bottom-color: #3a3a4e;
+    }
+
+    .modal-header h2 {
+      color: #f0f0f0;
+    }
+
+    .close-btn {
+      color: #aaa;
+    }
+
+    .close-btn:hover {
+      color: #fff;
+    }
+
+    .modal-body pre {
+      color: #d0d0e0;
     }
   }
 </style>
