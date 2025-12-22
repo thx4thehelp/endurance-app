@@ -39,7 +39,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEyMzE5N0ZGREE2MzAyN0UKUldSK0FtUGEvNWN4RXFXT2xJbjIwcWxlWGRLamdZYkR4c0tUbk9xdmRDV0hTTGQ0cXdaSVhaQnoK",
       "endpoints": [
-        "https://github.com/anthropics/endurance-app/releases/latest/download/latest.json"
+        "https://github.com/thx4thehelp/endurance-app/releases/latest/download/latest.json"
       ]
     }
   }
