@@ -37,7 +37,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEyMzE5N0ZGREE2MzAyN0UKUldSK0FtUGEvNWN4RXFXT2xJbjIwcWxlWGRLamdZYkR4c0tUbk9xdmRDV0hTTGQ0cXdaSVhaQnoK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc0NTI3Q0U2MDlGNDQzRUMKUldUc1EvUUo1bnhTZExzU1k2YS9KVVVzOXpocXRaRXpHNGZJaDhKUmZNVFhqTFJUakl1MXdtQzAK",
       "endpoints": [
         "https://github.com/thx4thehelp/endurance-app/releases/latest/download/latest.json"
       ]
