@@ -100,7 +100,7 @@
         <span class="info-value">v0.1.2</span>
       </div>
       <div class="info-row">
-        <span class="info-label">초고속 생성&조회 문의</span>
+        <span class="info-label highlight">초고속 생성&조회 문의</span>
         <span class="info-value">010-8809-2943</span>
       </div>
       <div class="info-row">
@@ -234,7 +234,8 @@
   .info-row {
     display: flex;
     justify-content: space-between;
-    padding: 0.5rem 0;
+    align-items: center;
+    padding: 0.75rem 0;
     border-bottom: 1px solid #f0f0f0;
   }
 
@@ -245,6 +246,11 @@
   .info-label {
     font-size: 0.9rem;
     color: #888;
+  }
+
+  .info-label.highlight {
+    font-weight: 700;
+    color: #ff9a16;
   }
 
   .info-value {

@@ -98,8 +98,22 @@ function setTrackedTimeout(fn: () => void, delay: number): ReturnType<typeof set
   return id;
 }
 
+function formatErrorMessage(message: string): string {
+  if (message.startsWith('RATE_LIMITED')) {
+    return '무료 버전은 IP당 1분에 60개 요청이 가능합니다.';
+  }
+  if (message === 'BANNED') {
+    return '차단된 IP입니다. 관리자에게 문의해주세요.';
+  }
+  if (message.startsWith('HTTP_ERROR')) {
+    return '서버 연결에 실패했습니다. 잠시 후 다시 시도합니다.';
+  }
+  return message;
+}
+
 function showErrorModal(message: string, onStop: () => void) {
-  errorModal.set({ show: true, message, countdown: 10, onStop });
+  const displayMessage = formatErrorMessage(message);
+  errorModal.set({ show: true, message: displayMessage, countdown: 10, onStop });
 
   if (countdownId) clearInterval(countdownId);
   countdownId = setInterval(() => {
