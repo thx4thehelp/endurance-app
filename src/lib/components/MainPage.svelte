@@ -254,8 +254,8 @@
   }
 
   .view-readme-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #ffef39 0%, #ff9a16 100%);
+    color: #1a1a2e;
     border: none;
     padding: 0.4rem 1rem;
     border-radius: 6px;
@@ -267,7 +267,7 @@
 
   .view-readme-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(255, 154, 22, 0.4);
   }
 
   .modal-overlay {
@@ -333,7 +333,7 @@
     color: #1a1a2e;
     margin: 0 0 1rem 0;
     padding-bottom: 0.5rem;
-    border-bottom: 2px solid #667eea;
+    border-bottom: 2px solid #ff9a16;
   }
 
   .markdown-content :global(h2) {
@@ -408,15 +408,15 @@
   }
 
   .markdown-content :global(blockquote) {
-    border-left: 4px solid #667eea;
+    border-left: 4px solid #ff9a16;
     margin: 0.75rem 0;
     padding: 0.5rem 1rem;
-    background: #f9f9ff;
+    background: #fffef5;
     color: #555;
   }
 
   .markdown-content :global(a) {
-    color: #667eea;
+    color: #ff9a16;
     text-decoration: none;
   }
 
@@ -524,7 +524,7 @@
     }
 
     .markdown-content :global(a) {
-      color: #8b9fea;
+      color: #ffbf40;
     }
   }
 </style>

@@ -337,7 +337,7 @@
   }
 
   .search-input:focus {
-    border-color: #667eea;
+    border-color: #ff9a16;
     outline: none;
   }
 
@@ -392,14 +392,14 @@
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #ffef39 0%, #ff9a16 100%);
+    color: #1a1a2e;
     transition: all 0.2s;
   }
 
   .export-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(255, 154, 22, 0.4);
   }
 
   .show-all-btn {
@@ -410,14 +410,14 @@
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #ffef39 0%, #ff9a16 100%);
+    color: #1a1a2e;
     transition: all 0.2s;
   }
 
   .show-all-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(255, 154, 22, 0.4);
   }
 
   .loading-state {
@@ -433,7 +433,7 @@
     height: 40px;
     margin: 0 auto 1rem;
     border: 3px solid #f3f3f3;
-    border-top: 3px solid #667eea;
+    border-top: 3px solid #ff9a16;
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -505,8 +505,8 @@
   }
 
   .source-random {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #ffef39 0%, #ff9a16 100%);
+    color: #1a1a2e;
   }
 
   .source-mnemonic {
@@ -652,9 +652,9 @@
   }
 
   .page-btn.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #ffef39 0%, #ff9a16 100%);
     border-color: transparent;
-    color: white;
+    color: #1a1a2e;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -690,7 +690,7 @@
 
     .spinner {
       border-color: #3a3a4e;
-      border-top-color: #667eea;
+      border-top-color: #ff9a16;
     }
 
     .empty-state h3 {

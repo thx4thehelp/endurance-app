@@ -87,7 +87,7 @@
   }
 
   .nav-item.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #ffef39 0%, #ff9a16 100%);
   }
 
   .nav-icon {

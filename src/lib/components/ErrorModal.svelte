@@ -68,7 +68,7 @@
   .countdown {
     font-size: 1.1rem;
     font-weight: 600;
-    color: #667eea;
+    color: #ff9a16;
     margin-bottom: 1rem;
   }
 
@@ -81,7 +81,7 @@
 
   .progress {
     height: 100%;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(90deg, #ffef39 0%, #ff9a16 100%);
     transition: width 1s linear;
   }
 

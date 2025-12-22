@@ -144,14 +144,14 @@
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #ffef39 0%, #ff9a16 100%);
+    color: #1a1a2e;
     transition: all 0.3s;
   }
 
   .start-btn:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 5px 20px rgba(255, 154, 22, 0.4);
   }
 
   .start-btn:disabled {

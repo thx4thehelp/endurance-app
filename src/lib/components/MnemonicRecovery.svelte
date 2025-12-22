@@ -273,7 +273,7 @@
   }
 
   .word-input-wrapper input:focus {
-    border-color: #667eea;
+    border-color: #ff9a16;
     outline: none;
   }
 
