@@ -10,6 +10,9 @@ export function weiToEth(weiHex: string): string {
 
 export async function getBalance(address: string): Promise<{ balance: string; balanceEth: string } | null> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
     const response = await fetch(RPC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -18,8 +21,11 @@ export async function getBalance(address: string): Promise<{ balance: string; ba
         method: 'eth_getBalance',
         params: [address, 'latest'],
         id: 1
-      })
+      }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (response.status === 429) {
       const retryAfter = response.headers.get('Retry-After');
@@ -44,6 +50,74 @@ export async function getBalance(address: string): Promise<{ balance: string; ba
       balanceEth: weiToEth(data.result)
     };
   } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('TIMEOUT');
+    }
+    if (err instanceof Error && err.message.includes('fetch')) {
+      throw new Error('CONNECTION_FAILED');
+    }
+    throw err;
+  }
+}
+
+export async function getBalanceBatch(addresses: string[]): Promise<Map<string, { balance: string; balanceEth: string }>> {
+  const results = new Map<string, { balance: string; balanceEth: string }>();
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+    const batchRequest = addresses.map((address, index) => ({
+      jsonrpc: '2.0',
+      method: 'eth_getBalance',
+      params: [address, 'latest'],
+      id: index
+    }));
+
+    const response = await fetch(RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(batchRequest),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After');
+      throw new Error(`RATE_LIMITED:${retryAfter || '5'}`);
+    }
+
+    if (response.status === 403) {
+      throw new Error('BANNED');
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP_ERROR:${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (Array.isArray(data)) {
+      for (const item of data) {
+        if (item.result && item.id !== undefined) {
+          const address = addresses[item.id];
+          results.set(address, {
+            balance: item.result,
+            balanceEth: weiToEth(item.result)
+          });
+        }
+      }
+    }
+
+    return results;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('TIMEOUT');
+    }
+    if (err instanceof Error && err.message.includes('fetch')) {
+      throw new Error('CONNECTION_FAILED');
+    }
     throw err;
   }
 }

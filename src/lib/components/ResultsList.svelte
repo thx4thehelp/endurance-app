@@ -17,22 +17,36 @@
   let totalPages = $derived(Math.ceil(displayCount / itemsPerPage));
   let copiedId = $state<string | null>(null);
 
-  async function loadData() {
+  let countsLoaded = false;
+
+  async function loadCounts() {
+    if (!countsLoaded) {
+      [totalCount, balanceCount] = await Promise.all([
+        getTotalCount(),
+        getBalanceCount()
+      ]);
+      countsLoaded = true;
+    }
+  }
+
+  async function loadData(refreshCounts = false) {
     isLoading = true;
     const offset = (currentPage - 1) * itemsPerPage;
 
     try {
+      if (refreshCounts) {
+        countsLoaded = false;
+      }
+
       if (searchQuery) {
         results = await searchWallets(searchQuery, itemsPerPage, offset);
         totalCount = await searchWalletsCount(searchQuery);
       } else if (showOnlyWithBalance) {
         results = await getWalletsWithBalance(itemsPerPage, offset);
-        totalCount = await getTotalCount();
-        balanceCount = await getBalanceCount();
+        await loadCounts();
       } else {
         results = await getAllWallets(itemsPerPage, offset);
-        totalCount = await getTotalCount();
-        balanceCount = await getBalanceCount();
+        await loadCounts();
       }
     } catch (err) {
       console.error('Failed to load wallets:', err);
@@ -383,6 +397,10 @@
     background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
     border-color: transparent;
     color: white;
+  }
+
+  .filter-btn.active:hover:not(:disabled) {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
   }
 
   .export-btn {

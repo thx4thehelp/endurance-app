@@ -17,7 +17,7 @@
 
   onMount(async () => {
     checkStatus();
-    const interval = setInterval(checkStatus, 30000);
+    const interval = setInterval(checkStatus, 60000);
 
     // README 파일 로드 및 마크다운 파싱
     try {

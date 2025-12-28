@@ -2,12 +2,18 @@
   import { isValidMnemonicWord, getWordlistArray } from '$lib/utils/wallet';
   import { recoveryState, startMnemonicRecovery, stopMnemonicRecovery, updateMnemonicWord } from '$lib/stores/recovery';
 
-  // 자동완성 관련
-  let focusedIndex = $state<number | null>(null);
-  let suggestions = $state<string[]>([]);
-  let selectedSuggestionIndex = $state(0);
-  const wordlist = getWordlistArray();
+  // 각 input별 독립 상태
+  interface InputState {
+    suggestions: string[];
+    selectedIndex: number;
+    isFocused: boolean;
+  }
 
+  let inputStates = $state<InputState[]>(
+    Array.from({ length: 12 }, () => ({ suggestions: [], selectedIndex: 0, isFocused: false }))
+  );
+
+  const wordlist = getWordlistArray();
   let errorMessage = $state('');
 
   function isValidWord(word: string): boolean {
@@ -33,55 +39,60 @@
     updateMnemonicWord(index, value);
 
     if (value.length > 0) {
-      suggestions = wordlist.filter(w => w.startsWith(value)).slice(0, 8);
-      selectedSuggestionIndex = 0;
+      inputStates[index].suggestions = wordlist.filter(w => w.startsWith(value)).slice(0, 8);
+      inputStates[index].selectedIndex = 0;
     } else {
-      suggestions = [];
+      inputStates[index].suggestions = [];
     }
   }
 
   function handleFocus(index: number) {
-    focusedIndex = index;
-    const value = $recoveryState.mnemonic.words[index].trim();
+    inputStates[index].isFocused = true;
+    inputStates[index].selectedIndex = 0;
+    const value = $recoveryState.mnemonic.words[index].trim().toLowerCase();
     if (value.length > 0) {
-      suggestions = wordlist.filter(w => w.startsWith(value)).slice(0, 8);
+      inputStates[index].suggestions = wordlist.filter(w => w.startsWith(value)).slice(0, 8);
     } else {
-      suggestions = [];
+      inputStates[index].suggestions = [];
     }
   }
 
-  function handleBlur() {
+  function handleBlur(index: number) {
     setTimeout(() => {
-      focusedIndex = null;
-      suggestions = [];
+      inputStates[index].isFocused = false;
+      inputStates[index].suggestions = [];
     }, 200);
   }
 
   function handleKeydown(index: number, event: KeyboardEvent) {
-    if (suggestions.length > 0) {
+    const state = inputStates[index];
+    if (state.suggestions.length > 0) {
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, suggestions.length - 1);
+        inputStates[index].selectedIndex = Math.min(state.selectedIndex + 1, state.suggestions.length - 1);
       } else if (event.key === 'ArrowUp') {
         event.preventDefault();
-        selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, 0);
+        inputStates[index].selectedIndex = Math.max(state.selectedIndex - 1, 0);
       } else if (event.key === 'Enter' || event.key === 'Tab') {
         event.preventDefault();
-        selectSuggestion(index, suggestions[selectedSuggestionIndex]);
+        selectSuggestion(index, state.suggestions[state.selectedIndex]);
       } else if (event.key === 'Escape') {
-        suggestions = [];
+        inputStates[index].suggestions = [];
       }
     }
   }
 
   function selectSuggestion(index: number, word: string) {
     updateMnemonicWord(index, word);
-    suggestions = [];
-    focusedIndex = null;
+    inputStates[index].suggestions = [];
+    inputStates[index].isFocused = false;
 
     if (index < 11) {
-      const nextInput = document.querySelector(`input[data-mnemonic-index="${index + 1}"]`) as HTMLInputElement;
-      if (nextInput) nextInput.focus();
+      const nextIndex = index + 1;
+      const nextInput = document.querySelector(`input[data-mnemonic-index="${nextIndex}"]`) as HTMLInputElement;
+      if (nextInput) {
+        nextInput.focus();
+      }
     }
   }
 
@@ -125,19 +136,19 @@
           value={word}
           oninput={(e) => handleInput(i, e)}
           onfocus={() => handleFocus(i)}
-          onblur={handleBlur}
+          onblur={() => handleBlur(i)}
           onkeydown={(e) => handleKeydown(i, e)}
           disabled={$recoveryState.mnemonic.isRunning}
           class:filled={word.trim() && isValidWord(word)}
           class:invalid={word.trim() && !isValidWord(word)}
         />
-        {#if focusedIndex === i && suggestions.length > 0}
+        {#if inputStates[i].isFocused && inputStates[i].suggestions.length > 0}
           <div class="suggestions">
-            {#each suggestions as suggestion, si}
+            {#each inputStates[i].suggestions as suggestion, si}
               <button
                 type="button"
                 class="suggestion-item"
-                class:selected={si === selectedSuggestionIndex}
+                class:selected={si === inputStates[i].selectedIndex}
                 onmousedown={() => selectSuggestion(i, suggestion)}
               >
                 {suggestion}

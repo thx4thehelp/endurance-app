@@ -16,10 +16,7 @@ export interface WalletRecord {
 export async function initDatabase(): Promise<Database> {
   if (db) return db;
 
-  // Documents 폴더에 저장
-  console.log('[DB] Initializing database...');
   db = await Database.load('sqlite:endurance_wallets.db');
-  console.log('[DB] Database loaded successfully');
 
   // 테이블 생성
   await db.execute(`
@@ -38,6 +35,7 @@ export async function initDatabase(): Promise<Database> {
   // 인덱스 생성 (빠른 조회용)
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_hasBalance ON wallets(hasBalance)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_timestamp ON wallets(timestamp DESC)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_address ON wallets(address)`);
 
   return db;
 }
@@ -46,26 +44,19 @@ export async function saveWallet(wallet: Omit<WalletRecord, 'hasBalance'>): Prom
   const database = await initDatabase();
   const hasBalance = parseFloat(wallet.balanceEth) > 0 ? 1 : 0;
 
-  console.log('[DB] Saving wallet:', wallet.address, 'balance:', wallet.balanceEth);
-
   await database.execute(
     `INSERT OR IGNORE INTO wallets (id, address, privateKey, balance, balanceEth, source, timestamp, hasBalance)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [wallet.id, wallet.address, wallet.privateKey, wallet.balance, wallet.balanceEth, wallet.source, wallet.timestamp, hasBalance]
   );
-
-  console.log('[DB] Wallet saved successfully');
 }
 
 export async function getAllWallets(limit = 100, offset = 0): Promise<WalletRecord[]> {
   const database = await initDatabase();
-  console.log('[DB] Getting all wallets, limit:', limit, 'offset:', offset);
-  const results = await database.select<WalletRecord[]>(
+  return await database.select<WalletRecord[]>(
     `SELECT * FROM wallets ORDER BY timestamp DESC LIMIT $1 OFFSET $2`,
     [limit, offset]
   );
-  console.log('[DB] Got', results.length, 'wallets');
-  return results;
 }
 
 export async function getWalletsWithBalance(limit = 100, offset = 0): Promise<WalletRecord[]> {
@@ -79,7 +70,6 @@ export async function getWalletsWithBalance(limit = 100, offset = 0): Promise<Wa
 export async function getTotalCount(): Promise<number> {
   const database = await initDatabase();
   const result = await database.select<[{ count: number }]>(`SELECT COUNT(*) as count FROM wallets`);
-  console.log('[DB] Total count:', result[0]?.count);
   return result[0]?.count ?? 0;
 }
 
