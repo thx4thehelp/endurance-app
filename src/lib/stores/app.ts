@@ -1,9 +1,8 @@
 import { writable } from 'svelte/store';
-import { saveWallet, type WalletRecord } from '$lib/db';
+import { saveWallet } from '$lib/db';
 
 export const agreed = writable<boolean>(false);
 export const currentPage = writable<string>('main');
-export const batchMode = writable<boolean>(false);
 
 export interface WalletResult {
   id: string;

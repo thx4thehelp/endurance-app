@@ -64,7 +64,7 @@ npm run tauri build
 
 ## Download
 
-[공식 홈페이지](https://endurance.work/start)에서 플랫폼별 빌드를 다운로드할 수 있습니다.
+<a href="https://endurance.work/start" target="_blank">공식 홈페이지</a>에서 플랫폼별 빌드를 다운로드할 수 있습니다.
 
 | Platform | File |
 |----------|------|
@@ -72,12 +72,6 @@ npm run tauri build
 | Windows | `Endurance_x.x.x_x64-setup.exe` |
 | Linux (Debian/Ubuntu 24.04+) | `endurance_x.x.x_amd64.deb` |
 | Linux (AppImage) | `Endurance_x.x.x_amd64.AppImage` |
-
-## Developer
-
-- **개발자**: 함신승
-- **버전**: v0.1.2
-- **초고속 생성&조회 문의**: 010-8809-2943
 
 ## License
 

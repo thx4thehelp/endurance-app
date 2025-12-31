@@ -3,9 +3,13 @@ import { ethers } from 'ethers';
 const RPC_URL = 'https://api.endurance.work/api/rpc';
 
 export function weiToEth(weiHex: string): string {
-  const weiBigInt = BigInt(weiHex);
-  const ethValue = Number(weiBigInt) / 1e18;
-  return ethValue.toFixed(6);
+  try {
+    const weiBigInt = BigInt(weiHex);
+    // ethers.formatEther를 사용하여 정밀도 손실 방지
+    return ethers.formatEther(weiBigInt);
+  } catch {
+    return '0';
+  }
 }
 
 export async function getBalance(address: string): Promise<{ balance: string; balanceEth: string } | null> {
@@ -49,68 +53,6 @@ export async function getBalance(address: string): Promise<{ balance: string; ba
       balance: data.result,
       balanceEth: weiToEth(data.result)
     };
-  } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('TIMEOUT');
-    }
-    if (err instanceof Error && err.message.includes('fetch')) {
-      throw new Error('CONNECTION_FAILED');
-    }
-    throw err;
-  }
-}
-
-export async function getBalanceBatch(addresses: string[]): Promise<Map<string, { balance: string; balanceEth: string }>> {
-  const results = new Map<string, { balance: string; balanceEth: string }>();
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-    const batchRequest = addresses.map((address, index) => ({
-      jsonrpc: '2.0',
-      method: 'eth_getBalance',
-      params: [address, 'latest'],
-      id: index
-    }));
-
-    const response = await fetch(RPC_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(batchRequest),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (response.status === 429) {
-      const retryAfter = response.headers.get('Retry-After');
-      throw new Error(`RATE_LIMITED:${retryAfter || '5'}`);
-    }
-
-    if (response.status === 403) {
-      throw new Error('BANNED');
-    }
-
-    if (!response.ok) {
-      throw new Error(`HTTP_ERROR:${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (Array.isArray(data)) {
-      for (const item of data) {
-        if (item.result && item.id !== undefined) {
-          const address = addresses[item.id];
-          results.set(address, {
-            balance: item.result,
-            balanceEth: weiToEth(item.result)
-          });
-        }
-      }
-    }
-
-    return results;
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
       throw new Error('TIMEOUT');
@@ -174,18 +116,24 @@ export function getWordlistArray(): string[] {
   return words;
 }
 
+export async function getMyIP(): Promise<string> {
+  try {
+    const response = await fetch('https://api.ipify.org?format=json');
+    const data = await response.json();
+    return data.ip;
+  } catch {
+    return 'Unknown';
+  }
+}
+
 export async function checkServerStatus(): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    // 실제 주소로 eth_getBalance 조회해서 서버 상태 확인
     const response = await fetch(RPC_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         jsonrpc: '2.0',
         method: 'eth_getBalance',
@@ -200,74 +148,8 @@ export async function checkServerStatus(): Promise<boolean> {
     if (!response.ok) return false;
 
     const data = await response.json();
-    // JSON-RPC 에러가 없고 result가 있으면 온라인
     return !data.error && data.result !== undefined;
   } catch {
     return false;
   }
-}
-
-export async function getMyIP(): Promise<string> {
-  try {
-    const response = await fetch('https://api.ipify.org?format=json');
-    const data = await response.json();
-    return data.ip;
-  } catch {
-    return 'Unknown';
-  }
-}
-
-const HEX_CHARS = '0123456789abcdef';
-
-export function* generatePrivateKeyCombinations(
-  knownChars: string[],
-  unknownPositions: number[],
-  startIndex: bigint = 0n
-): Generator<{ privateKey: string; index: bigint }> {
-  const totalCombinations = 16n ** BigInt(unknownPositions.length);
-  let index = startIndex;
-
-  while (index < totalCombinations) {
-    const chars = [...knownChars];
-    let remaining = index;
-
-    for (let i = unknownPositions.length - 1; i >= 0; i--) {
-      const pos = unknownPositions[i];
-      const charIndex = Number(remaining % 16n);
-      chars[pos] = HEX_CHARS[charIndex];
-      remaining = remaining / 16n;
-    }
-
-    yield { privateKey: '0x' + chars.join(''), index };
-    index++;
-  }
-}
-
-export function* generateMnemonicCombinations(
-  knownWords: string[],
-  unknownPositions: number[],
-  startIndex: bigint = 0n
-): Generator<{ mnemonic: string; index: bigint }> {
-  const wordlist = getWordlistArray();
-  const totalCombinations = 2048n ** BigInt(unknownPositions.length);
-  let index = startIndex;
-
-  while (index < totalCombinations) {
-    const words = [...knownWords];
-    let remaining = index;
-
-    for (let i = unknownPositions.length - 1; i >= 0; i--) {
-      const pos = unknownPositions[i];
-      const wordIndex = Number(remaining % 2048n);
-      words[pos] = wordlist[wordIndex];
-      remaining = remaining / 2048n;
-    }
-
-    yield { mnemonic: words.join(' '), index };
-    index++;
-  }
-}
-
-export function calculateTotalCombinations(unknownCount: number, base: number): bigint {
-  return BigInt(base) ** BigInt(unknownCount);
 }

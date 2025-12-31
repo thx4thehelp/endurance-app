@@ -59,8 +59,10 @@ export async function downloadAndInstall() {
       if (event.event === 'Started') {
         updateState.update(s => ({ ...s, progress: 0 }));
       } else if (event.event === 'Progress') {
-        const progress = event.data.contentLength
-          ? Math.round((event.data.chunkLength / event.data.contentLength) * 100)
+        // @ts-expect-error contentLength may exist in some Tauri versions
+        const contentLength = event.data.contentLength as number | undefined;
+        const progress = contentLength
+          ? Math.round((event.data.chunkLength / contentLength) * 100)
           : 0;
         updateState.update(s => ({ ...s, progress }));
       } else if (event.event === 'Finished') {

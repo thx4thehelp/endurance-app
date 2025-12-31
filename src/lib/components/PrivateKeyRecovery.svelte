@@ -284,7 +284,7 @@
   }
 
   .char-input-wrapper input:focus {
-    border-color: #ff9a16;
+    border-color: #3fb2ff;
     outline: none;
   }
 

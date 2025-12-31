@@ -15,22 +15,24 @@
     lastChecked = new Date().toLocaleTimeString();
   }
 
-  onMount(async () => {
+  onMount(() => {
     checkStatus();
     const interval = setInterval(checkStatus, 60000);
 
     // README 파일 로드 및 마크다운 파싱
-    try {
-      const response = await fetch('/README.md');
-      if (response.ok) {
-        const markdown = await response.text();
-        readmeHtml = await marked(markdown);
-      } else {
+    (async () => {
+      try {
+        const response = await fetch('/README.md');
+        if (response.ok) {
+          const markdown = await response.text();
+          readmeHtml = await marked(markdown);
+        } else {
+          readmeHtml = '<p>README.md 파일을 불러올 수 없습니다.</p>';
+        }
+      } catch {
         readmeHtml = '<p>README.md 파일을 불러올 수 없습니다.</p>';
       }
-    } catch {
-      readmeHtml = '<p>README.md 파일을 불러올 수 없습니다.</p>';
-    }
+    })();
 
     return () => clearInterval(interval);
   });
@@ -92,16 +94,24 @@
     </div>
     <div class="card-body developer-info">
       <div class="info-row">
-        <span class="info-label">개발자</span>
-        <span class="info-value">함신승</span>
+        <span class="info-label">개발</span>
+        <span class="info-value">미래소프트</span>
       </div>
       <div class="info-row">
         <span class="info-label">버전</span>
         <span class="info-value">v0.1.2</span>
       </div>
       <div class="info-row">
-        <span class="info-label highlight">초고속 생성&조회 문의</span>
-        <span class="info-value">010-8809-2943</span>
+        <span class="info-label">공식 사이트</span>
+        <a href="https://endurance.work" target="_blank" rel="noopener noreferrer" class="link-btn">endurance.work</a>
+      </div>
+      <div class="info-row">
+        <span class="info-label">문의하기</span>
+        <a href="mailto:support@endurance.work" class="link-btn">support@endurance.work</a>
+      </div>
+      <div class="info-row">
+        <span class="info-label">카카오톡</span>
+        <a href="https://open.kakao.com/o/sxeKEc9h" target="_blank" rel="noopener noreferrer" class="kakao-btn">1:1 문의</a>
       </div>
       <div class="info-row">
         <span class="info-label">정보</span>
@@ -248,20 +258,46 @@
     color: #888;
   }
 
-  .info-label.highlight {
-    font-weight: 700;
-    color: #ff9a16;
-  }
-
   .info-value {
     font-size: 0.9rem;
     color: #1a1a2e;
     font-weight: 500;
   }
 
+  .link-btn {
+    font-size: 0.9rem;
+    color: #3fb2ff;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .link-btn:hover {
+    color: #1654ff;
+    text-decoration: underline;
+  }
+
+  .kakao-btn {
+    background: #FEE500;
+    color: #000;
+    border: none;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .kakao-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(254, 229, 0, 0.5);
+  }
+
   .view-readme-btn {
-    background: linear-gradient(135deg, #ffef39 0%, #ff9a16 100%);
-    color: #1a1a2e;
+    background: linear-gradient(135deg, #3fb2ff 0%, #1654ff 100%);
+    color: #fff;
     border: none;
     padding: 0.4rem 1rem;
     border-radius: 6px;
@@ -273,7 +309,7 @@
 
   .view-readme-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(255, 154, 22, 0.4);
+    box-shadow: 0 4px 12px rgba(22, 84, 255, 0.4);
   }
 
   .modal-overlay {
@@ -339,7 +375,7 @@
     color: #1a1a2e;
     margin: 0 0 1rem 0;
     padding-bottom: 0.5rem;
-    border-bottom: 2px solid #ff9a16;
+    border-bottom: 2px solid #3fb2ff;
   }
 
   .markdown-content :global(h2) {
@@ -414,7 +450,7 @@
   }
 
   .markdown-content :global(blockquote) {
-    border-left: 4px solid #ff9a16;
+    border-left: 4px solid #3fb2ff;
     margin: 0.75rem 0;
     padding: 0.5rem 1rem;
     background: #fffef5;
@@ -422,7 +458,7 @@
   }
 
   .markdown-content :global(a) {
-    color: #ff9a16;
+    color: #3fb2ff;
     text-decoration: none;
   }
 
@@ -530,7 +566,7 @@
     }
 
     .markdown-content :global(a) {
-      color: #ffbf40;
+      color: #3fb2ff;
     }
   }
 </style>

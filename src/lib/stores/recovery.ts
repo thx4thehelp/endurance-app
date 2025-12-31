@@ -1,26 +1,18 @@
 import { writable, get } from 'svelte/store';
-import { generateRandomWallet, getBalance, getBalanceBatch, walletFromMnemonic, walletFromPrivateKey, getWordlistArray } from '$lib/utils/wallet';
-import { saveWalletResult, errorModal, batchMode, type WalletResult } from '$lib/stores/app';
-import WalletWorker from '$lib/workers/wallet.worker?worker';
+import { generateRandomWallet, getBalance, walletFromMnemonic, walletFromPrivateKey, getWordlistArray } from '$lib/utils/wallet';
+import { saveWalletResult, errorModal, type WalletResult } from '$lib/stores/app';
 
 const BIP39_WORDLIST = getWordlistArray();
 
-// Web Worker 인스턴스
-let walletWorker: Worker | null = null;
-
-function getWorker(): Worker {
-  if (!walletWorker) {
-    walletWorker = new WalletWorker();
-  }
-  return walletWorker;
+// 지갑 타입 정의
+interface WalletInfo {
+  address: string;
+  privateKey: string;
 }
 
-function terminateWorker() {
-  if (walletWorker) {
-    walletWorker.terminate();
-    walletWorker = null;
-  }
-}
+// Generator 타입 정의
+type MnemonicGenerator = Generator<{ mnemonic: string; index: bigint }, void, never>;
+type PrivateKeyGenerator = Generator<{ key: string; index: bigint }, void, never>;
 
 export type RecoveryType = 'random' | 'mnemonic' | 'privatekey' | null;
 
@@ -44,7 +36,7 @@ export interface RecoveryState {
     words: string[];
     currentIndex: bigint;
     totalCombinations: bigint;
-    generator: Generator<{ mnemonic: string; index: bigint }, void, unknown> | null;
+    generator: MnemonicGenerator | null;
     recentResults: { mnemonic: string; address: string; privateKey: string; balance: string }[];
   };
   privatekey: {
@@ -57,7 +49,7 @@ export interface RecoveryState {
     chars: string[];
     currentIndex: bigint;
     totalCombinations: bigint;
-    generator: Generator<{ key: string; index: bigint }, void, unknown> | null;
+    generator: PrivateKeyGenerator | null;
     recentResults: { address: string; privateKey: string; balance: string }[];
   };
 }
@@ -126,12 +118,6 @@ function formatErrorMessage(message: string): string {
   if (message.startsWith('HTTP_ERROR')) {
     return '서버 연결에 실패했습니다. 잠시 후 다시 시도합니다.';
   }
-  if (message === 'TIMEOUT') {
-    return '서버 응답 시간이 초과되었습니다. 서버 상태를 확인해주세요.';
-  }
-  if (message === 'CONNECTION_FAILED') {
-    return '서버에 연결할 수 없습니다. 네트워크 또는 서버 상태를 확인해주세요.';
-  }
   return message;
 }
 
@@ -164,8 +150,21 @@ function clearTimers() {
   errorModal.set({ show: false, message: '', countdown: 0, onStop: undefined });
 }
 
+// 에러 발생 시 재시도 스케줄링 (공통 함수)
+function handleRecoveryError(
+  err: unknown,
+  stopFn: () => void,
+  retryFn: () => void,
+  isRunningCheck: () => boolean
+) {
+  showErrorModal(err instanceof Error ? err.message : '네트워크 오류', stopFn);
+  setTrackedTimeout(() => {
+    if (isRunningCheck()) retryFn();
+  }, 10000);
+}
+
 // 니모닉 조합 생성기
-function* mnemonicCombinationGenerator(words: string[]): Generator<{ mnemonic: string; index: bigint }, void, unknown> {
+function* mnemonicCombinationGenerator(words: string[]): MnemonicGenerator {
   const unknownPositions = words.map((w, i) => w === '' ? i : -1).filter(i => i !== -1);
   const total = BigInt(2048) ** BigInt(unknownPositions.length);
 
@@ -184,7 +183,7 @@ function* mnemonicCombinationGenerator(words: string[]): Generator<{ mnemonic: s
 }
 
 // 프라이빗키 조합 생성기
-function* privateKeyCombinationGenerator(chars: string[]): Generator<{ key: string; index: bigint }, void, unknown> {
+function* privateKeyCombinationGenerator(chars: string[]): PrivateKeyGenerator {
   const HEX_CHARS = '0123456789abcdef';
   const unknownPositions = chars.map((c, i) => c === '' ? i : -1).filter(i => i !== -1);
   const total = BigInt(16) ** BigInt(unknownPositions.length);
@@ -204,7 +203,7 @@ function* privateKeyCombinationGenerator(chars: string[]): Generator<{ key: stri
 }
 
 // 유효한 니모닉 찾기 (최대 1000개 스킵)
-function findNextValidMnemonic(generator: Generator<{ mnemonic: string; index: bigint }, void, unknown>): { mnemonic: string; index: bigint; wallet: any } | null {
+function findNextValidMnemonic(generator: MnemonicGenerator): { mnemonic: string; index: bigint; wallet: WalletInfo } | null {
   for (let i = 0; i < 1000; i++) {
     const next = generator.next();
     if (next.done) return null;
@@ -221,7 +220,6 @@ function findNextValidMnemonic(generator: Generator<{ mnemonic: string; index: b
 // 모든 복구 중지
 export function stopAllRecovery() {
   clearTimers();
-  terminateWorker();
   recoveryState.update(state => ({
     ...state,
     activeType: null,
@@ -231,114 +229,10 @@ export function stopAllRecovery() {
   }));
 }
 
-// 무작위 테스트 (배치 모드) - Web Worker 사용
-async function runRandomCheckBatch() {
-  const state = get(recoveryState);
-  if (!state.random.isRunning) return;
-
-  const BATCH_SIZE = 100;
-  const worker = getWorker();
-
-  // Worker에서 지갑 생성
-  const walletsPromise = new Promise<{ address: string; privateKey: string }[]>((resolve) => {
-    const handler = (e: MessageEvent) => {
-      if (e.data.type === 'randomResult') {
-        worker.removeEventListener('message', handler);
-        resolve(e.data.wallets);
-      }
-    };
-    worker.addEventListener('message', handler);
-    worker.postMessage({ type: 'generateRandom', count: BATCH_SIZE });
-  });
-
-  recoveryState.update(s => ({
-    ...s,
-    random: { ...s.random, currentAddress: `지갑 생성 중... (${BATCH_SIZE}개)` }
-  }));
-
-  const wallets = await walletsPromise;
-  const addresses = wallets.map(w => w.address);
-
-  recoveryState.update(s => ({
-    ...s,
-    random: { ...s.random, currentAddress: `잔액 조회 중... (${BATCH_SIZE}개)` }
-  }));
-
-  try {
-    const balanceResults = await getBalanceBatch(addresses);
-
-    let checkedCount = 0;
-    let foundCount = 0;
-    const newResults: { address: string; privateKey: string; balance: string }[] = [];
-
-    for (const wallet of wallets) {
-      const balanceResult = balanceResults.get(wallet.address);
-      if (balanceResult) {
-        checkedCount++;
-
-        const result: WalletResult = {
-          id: crypto.randomUUID(),
-          address: wallet.address,
-          privateKey: wallet.privateKey,
-          balance: balanceResult.balance,
-          balanceEth: balanceResult.balanceEth,
-          source: 'random',
-          timestamp: Date.now()
-        };
-
-        try {
-          await saveWalletResult(result);
-        } catch (e) {
-          console.error('Failed to save wallet:', e);
-        }
-
-        const hasBalance = parseFloat(balanceResult.balanceEth) > 0;
-        if (hasBalance) {
-          foundCount++;
-        }
-
-        newResults.push({
-          address: wallet.address,
-          privateKey: wallet.privateKey,
-          balance: balanceResult.balanceEth
-        });
-      }
-    }
-
-    recoveryState.update(s => ({
-      ...s,
-      random: {
-        ...s.random,
-        totalChecked: s.random.totalChecked + checkedCount,
-        foundCount: s.random.foundCount + foundCount,
-        currentBalance: newResults[0]?.balance || '0',
-        currentAddress: wallets[wallets.length - 1].address,
-        recentResults: [...newResults.slice(0, 10), ...s.random.recentResults].slice(0, 10)
-      }
-    }));
-
-    const newState = get(recoveryState);
-    if (newState.random.isRunning) {
-      setTrackedTimeout(runRandomCheckBatch, 500);
-    }
-  } catch (err) {
-    showErrorModal(err instanceof Error ? err.message : '네트워크 오류', stopRandomRecovery);
-    setTrackedTimeout(() => {
-      const s = get(recoveryState);
-      if (s.random.isRunning) runRandomCheckBatch();
-    }, 10000);
-  }
-}
-
-// 무작위 테스트 (단일 모드)
+// 무작위 테스트
 async function runRandomCheck() {
   const state = get(recoveryState);
   if (!state.random.isRunning) return;
-
-  // 배치 모드면 배치 함수 호출
-  if (get(batchMode)) {
-    return runRandomCheckBatch();
-  }
 
   const wallet = pendingWallet || generateRandomWallet();
   pendingWallet = wallet;
@@ -391,11 +285,7 @@ async function runRandomCheck() {
       }
     }
   } catch (err) {
-    showErrorModal(err instanceof Error ? err.message : '네트워크 오류', stopRandomRecovery);
-    setTrackedTimeout(() => {
-      const s = get(recoveryState);
-      if (s.random.isRunning) runRandomCheck();
-    }, 10000);
+    handleRecoveryError(err, stopRandomRecovery, runRandomCheck, () => get(recoveryState).random.isRunning);
   }
 }
 
@@ -418,143 +308,10 @@ export function stopRandomRecovery() {
   }));
 }
 
-// 니모닉 복구용 Worker 상태
-let mnemonicWorkerIndex = 0n;
-
-// 니모닉 복구 (배치 모드) - Web Worker 사용
-async function runMnemonicCheckBatch() {
-  const state = get(recoveryState);
-  if (!state.mnemonic.isRunning) return;
-
-  const BATCH_SIZE = 100; // Worker에서 유효한 지갑 100개가 모일 때까지 생성
-  const worker = getWorker();
-
-  // 빈 칸 위치 찾기
-  const unknownPositions = state.mnemonic.words.map((w, i) => w === '' ? i : -1).filter(i => i !== -1);
-
-  if (mnemonicWorkerIndex >= state.mnemonic.totalCombinations) {
-    stopMnemonicRecovery();
-    return;
-  }
-
-  // Worker에서 지갑 생성
-  const walletsPromise = new Promise<{ mnemonic: string; address: string; privateKey: string; index: string }[]>((resolve) => {
-    const handler = (e: MessageEvent) => {
-      if (e.data.type === 'mnemonicResult') {
-        worker.removeEventListener('message', handler);
-        mnemonicWorkerIndex = BigInt(e.data.nextIndex);
-        resolve(e.data.wallets);
-      }
-    };
-    worker.addEventListener('message', handler);
-    worker.postMessage({
-      type: 'generateMnemonic',
-      knownWords: state.mnemonic.words,
-      unknownPositions,
-      startIndex: mnemonicWorkerIndex.toString(),
-      count: BATCH_SIZE
-    });
-  });
-
-  recoveryState.update(s => ({
-    ...s,
-    mnemonic: { ...s.mnemonic, currentAddress: `지갑 생성 중... (${BATCH_SIZE}개)` }
-  }));
-
-  const wallets = await walletsPromise;
-
-  if (wallets.length === 0) {
-    stopMnemonicRecovery();
-    return;
-  }
-
-  const addresses = wallets.map(w => w.address);
-
-  recoveryState.update(s => ({
-    ...s,
-    mnemonic: { ...s.mnemonic, currentAddress: `잔액 조회 중... (${wallets.length}개)` }
-  }));
-
-  try {
-    const balanceResults = await getBalanceBatch(addresses);
-
-    let checkedCount = 0;
-    let foundCount = 0;
-    const newResults: { mnemonic: string; address: string; privateKey: string; balance: string }[] = [];
-
-    for (const wallet of wallets) {
-      const balanceResult = balanceResults.get(wallet.address);
-      if (balanceResult) {
-        checkedCount++;
-
-        const result: WalletResult = {
-          id: crypto.randomUUID(),
-          address: wallet.address,
-          privateKey: wallet.privateKey,
-          balance: balanceResult.balance,
-          balanceEth: balanceResult.balanceEth,
-          source: 'mnemonic',
-          timestamp: Date.now()
-        };
-
-        try {
-          await saveWalletResult(result);
-        } catch (e) {
-          console.error('Failed to save wallet:', e);
-        }
-
-        const hasBalance = parseFloat(balanceResult.balanceEth) > 0;
-        if (hasBalance) {
-          foundCount++;
-        }
-
-        newResults.push({
-          mnemonic: wallet.mnemonic,
-          address: wallet.address,
-          privateKey: wallet.privateKey,
-          balance: balanceResult.balanceEth
-        });
-      }
-    }
-
-    const lastWallet = wallets[wallets.length - 1];
-
-    recoveryState.update(s => ({
-      ...s,
-      mnemonic: {
-        ...s.mnemonic,
-        totalChecked: s.mnemonic.totalChecked + checkedCount,
-        foundCount: s.mnemonic.foundCount + foundCount,
-        currentBalance: newResults[0]?.balance || '0',
-        currentMnemonic: lastWallet.mnemonic,
-        currentAddress: lastWallet.address,
-        currentIndex: BigInt(lastWallet.index),
-        recentResults: [...newResults.slice(0, 10), ...s.mnemonic.recentResults].slice(0, 10)
-      }
-    }));
-
-    const newState = get(recoveryState);
-    if (newState.mnemonic.isRunning) {
-      setTrackedTimeout(runMnemonicCheckBatch, 500);
-    }
-  } catch (err) {
-    showErrorModal(err instanceof Error ? err.message : '네트워크 오류', stopMnemonicRecovery);
-    setTrackedTimeout(() => {
-      const s = get(recoveryState);
-      if (s.mnemonic.isRunning) runMnemonicCheckBatch();
-    }, 10000);
-  }
-}
-
-// 니모닉 복구 (단일 모드)
+// 니모닉 복구
 async function runMnemonicCheck() {
   const state = get(recoveryState);
   if (!state.mnemonic.isRunning || !state.mnemonic.generator) return;
-
-  // 배치 모드면 배치 함수 호출
-  if (get(batchMode)) {
-    return runMnemonicCheckBatch();
-  }
 
   const validResult = findNextValidMnemonic(state.mnemonic.generator);
 
@@ -616,11 +373,7 @@ async function runMnemonicCheck() {
       }
     }
   } catch (err) {
-    showErrorModal(err instanceof Error ? err.message : '네트워크 오류', stopMnemonicRecovery);
-    setTrackedTimeout(() => {
-      const s = get(recoveryState);
-      if (s.mnemonic.isRunning) runMnemonicCheck();
-    }, 10000);
+    handleRecoveryError(err, stopMnemonicRecovery, runMnemonicCheck, () => get(recoveryState).mnemonic.isRunning);
   }
 }
 
@@ -630,9 +383,6 @@ export function startMnemonicRecovery(words: string[]) {
   const unknownCount = words.filter(w => w === '').length;
   const total = BigInt(2048) ** BigInt(unknownCount);
   const generator = mnemonicCombinationGenerator(words);
-
-  // Worker 인덱스 초기화
-  mnemonicWorkerIndex = 0n;
 
   recoveryState.update(s => ({
     ...s,
@@ -659,142 +409,10 @@ export function stopMnemonicRecovery() {
   }));
 }
 
-// 프라이빗키 복구용 Worker 상태
-let privatekeyWorkerIndex = 0n;
-
-// 프라이빗키 복구 (배치 모드) - Web Worker 사용
-async function runPrivateKeyCheckBatch() {
-  const state = get(recoveryState);
-  if (!state.privatekey.isRunning) return;
-
-  const BATCH_SIZE = 100;
-  const worker = getWorker();
-
-  // 빈 칸 위치 찾기
-  const unknownPositions = state.privatekey.chars.map((c, i) => c === '' ? i : -1).filter(i => i !== -1);
-
-  if (privatekeyWorkerIndex >= state.privatekey.totalCombinations) {
-    stopPrivateKeyRecovery();
-    return;
-  }
-
-  // Worker에서 지갑 생성
-  const walletsPromise = new Promise<{ key: string; address: string; privateKey: string; index: string }[]>((resolve) => {
-    const handler = (e: MessageEvent) => {
-      if (e.data.type === 'privateKeyResult') {
-        worker.removeEventListener('message', handler);
-        privatekeyWorkerIndex = BigInt(e.data.nextIndex);
-        resolve(e.data.wallets);
-      }
-    };
-    worker.addEventListener('message', handler);
-    worker.postMessage({
-      type: 'generatePrivateKey',
-      knownChars: state.privatekey.chars,
-      unknownPositions,
-      startIndex: privatekeyWorkerIndex.toString(),
-      count: BATCH_SIZE
-    });
-  });
-
-  recoveryState.update(s => ({
-    ...s,
-    privatekey: { ...s.privatekey, currentAddress: `지갑 생성 중... (${BATCH_SIZE}개)` }
-  }));
-
-  const wallets = await walletsPromise;
-
-  if (wallets.length === 0) {
-    stopPrivateKeyRecovery();
-    return;
-  }
-
-  const addresses = wallets.map(w => w.address);
-
-  recoveryState.update(s => ({
-    ...s,
-    privatekey: { ...s.privatekey, currentAddress: `잔액 조회 중... (${wallets.length}개)` }
-  }));
-
-  try {
-    const balanceResults = await getBalanceBatch(addresses);
-
-    let checkedCount = 0;
-    let foundCount = 0;
-    const newResults: { address: string; privateKey: string; balance: string }[] = [];
-
-    for (const wallet of wallets) {
-      const balanceResult = balanceResults.get(wallet.address);
-      if (balanceResult) {
-        checkedCount++;
-
-        const result: WalletResult = {
-          id: crypto.randomUUID(),
-          address: wallet.address,
-          privateKey: wallet.privateKey,
-          balance: balanceResult.balance,
-          balanceEth: balanceResult.balanceEth,
-          source: 'privatekey',
-          timestamp: Date.now()
-        };
-
-        try {
-          await saveWalletResult(result);
-        } catch (e) {
-          console.error('Failed to save wallet:', e);
-        }
-
-        const hasBalance = parseFloat(balanceResult.balanceEth) > 0;
-        if (hasBalance) {
-          foundCount++;
-        }
-
-        newResults.push({
-          address: wallet.address,
-          privateKey: wallet.privateKey,
-          balance: balanceResult.balanceEth
-        });
-      }
-    }
-
-    const lastWallet = wallets[wallets.length - 1];
-
-    recoveryState.update(s => ({
-      ...s,
-      privatekey: {
-        ...s.privatekey,
-        totalChecked: s.privatekey.totalChecked + checkedCount,
-        foundCount: s.privatekey.foundCount + foundCount,
-        currentBalance: newResults[0]?.balance || '0',
-        currentKey: lastWallet.key,
-        currentAddress: lastWallet.address,
-        currentIndex: BigInt(lastWallet.index),
-        recentResults: [...newResults.slice(0, 10), ...s.privatekey.recentResults].slice(0, 10)
-      }
-    }));
-
-    const newState = get(recoveryState);
-    if (newState.privatekey.isRunning) {
-      setTrackedTimeout(runPrivateKeyCheckBatch, 500);
-    }
-  } catch (err) {
-    showErrorModal(err instanceof Error ? err.message : '네트워크 오류', stopPrivateKeyRecovery);
-    setTrackedTimeout(() => {
-      const s = get(recoveryState);
-      if (s.privatekey.isRunning) runPrivateKeyCheckBatch();
-    }, 10000);
-  }
-}
-
-// 프라이빗키 복구 (단일 모드)
+// 프라이빗키 복구
 async function runPrivateKeyCheck() {
   const state = get(recoveryState);
   if (!state.privatekey.isRunning || !state.privatekey.generator) return;
-
-  // 배치 모드면 배치 함수 호출
-  if (get(batchMode)) {
-    return runPrivateKeyCheckBatch();
-  }
 
   const next = state.privatekey.generator.next();
   if (next.done) {
@@ -861,11 +479,7 @@ async function runPrivateKeyCheck() {
       }
     }
   } catch (err) {
-    showErrorModal(err instanceof Error ? err.message : '네트워크 오류', stopPrivateKeyRecovery);
-    setTrackedTimeout(() => {
-      const s = get(recoveryState);
-      if (s.privatekey.isRunning) runPrivateKeyCheck();
-    }, 10000);
+    handleRecoveryError(err, stopPrivateKeyRecovery, runPrivateKeyCheck, () => get(recoveryState).privatekey.isRunning);
   }
 }
 
@@ -875,9 +489,6 @@ export function startPrivateKeyRecovery(chars: string[]) {
   const unknownCount = chars.filter(c => c === '').length;
   const total = BigInt(16) ** BigInt(unknownCount);
   const generator = privateKeyCombinationGenerator(chars);
-
-  // Worker 인덱스 초기화
-  privatekeyWorkerIndex = 0n;
 
   recoveryState.update(s => ({
     ...s,
