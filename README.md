@@ -22,11 +22,8 @@ Ethereum 지갑 복구 도구입니다. 무작위 테스트, 니모닉 복구, �
 
 | Platform | 지원 여부 |
 |----------|----------|
-| macOS (Apple Silicon) | O |
 | Windows (x64) | O |
 | Linux (Ubuntu 24.04+) | O |
-
-> Intel Mac은 지원하지 않습니다.
 
 ## Installation
 
@@ -35,7 +32,6 @@ Ethereum 지갑 복구 도구입니다. 무작위 테스트, 니모닉 복구, �
 - Node.js 20+
 - Rust (latest stable)
 - Platform-specific dependencies:
-  - **macOS**: Xcode Command Line Tools
   - **Windows**: Visual Studio Build Tools, WebView2
   - **Linux (Ubuntu 24.04)**: `webkit2gtk-4.1`, `libappindicator3-1`
 
@@ -58,20 +54,17 @@ npm run tauri build
 
 | OS | Path |
 |----|------|
-| macOS | `~/Library/Application Support/com.endurance.wallet-recovery/endurance_wallets.db` |
 | Windows | `%APPDATA%\com.endurance.wallet-recovery\endurance_wallets.db` |
 | Linux | `~/.local/share/com.endurance.wallet-recovery/endurance_wallets.db` |
 
 ## Download
 
-<a href="https://endurance.work/start" target="_blank">공식 홈페이지</a>에서 플랫폼별 빌드를 다운로드할 수 있습니다.
+[공식 홈페이지](https://endurance.work/start)에서 플랫폼별 빌드를 다운로드할 수 있습니다.
 
 | Platform | File |
 |----------|------|
-| macOS (Apple Silicon) | `Endurance_x.x.x_aarch64.dmg` |
-| Windows | `Endurance_x.x.x_x64-setup.exe` |
-| Linux (Debian/Ubuntu 24.04+) | `endurance_x.x.x_amd64.deb` |
-| Linux (AppImage) | `Endurance_x.x.x_amd64.AppImage` |
+| Windows | `Endurance.Wallet.Recovery_x.x.x_x64-setup.exe` |
+| Linux (Ubuntu 24.04+) | `Endurance.Wallet.Recovery_x.x.x_amd64.deb` |
 
 ## License
 
