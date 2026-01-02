@@ -1,7 +1,7 @@
 {
-  "name": "endurance-temp",
+  "name": "endurance-wallet-recovery",
   "version": "0.1.2",
-  "description": "",
+  "description": "Ethereum 지갑 복구 도구 - 니모닉/프라이빗키 복구",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
