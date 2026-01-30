@@ -111,7 +111,7 @@
       </div>
       <div class="info-row">
         <span class="info-label">카카오톡</span>
-        <a href="https://open.kakao.com/o/sxeKEc9h" target="_blank" rel="noopener noreferrer" class="kakao-btn">1:1 문의</a>
+        <a href="https://open.kakao.com/o/sLemMkbi" target="_blank" rel="noopener noreferrer" class="kakao-btn">1:1 문의</a>
       </div>
       <div class="info-row">
         <span class="info-label">정보</span>
